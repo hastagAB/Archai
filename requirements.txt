@@ -1,0 +1,5 @@
+pinecone
+openai
+PyPDF2
+python-dotenv
+anthropic
