@@ -16,18 +16,59 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom CSS - Theme-aware styling for light and dark modes
 st.markdown("""
 <style>
+    /* CSS Variables for theme support */
+    :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f8f9fa;
+        --bg-tertiary: #e9ecef;
+        --text-primary: #1a1a1a;
+        --text-secondary: #666666;
+        --border-color: #e0e0e0;
+        --accent-color: #0066cc;
+        --accent-light: #e7f3ff;
+        --shadow: rgba(0,0,0,0.05);
+    }
+    
+    /* Dark mode variables */
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #3d3d3d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --border-color: #404040;
+            --accent-color: #4da6ff;
+            --accent-light: #1a3d5c;
+            --shadow: rgba(0,0,0,0.3);
+        }
+    }
+    
+    /* Streamlit dark theme detection */
+    [data-theme="dark"] {
+        --bg-primary: #1e1e1e;
+        --bg-secondary: #2d2d2d;
+        --bg-tertiary: #3d3d3d;
+        --text-primary: #e0e0e0;
+        --text-secondary: #b0b0b0;
+        --border-color: #404040;
+        --accent-color: #4da6ff;
+        --accent-light: #1a3d5c;
+        --shadow: rgba(0,0,0,0.3);
+    }
+    
     /* Main container improvements */
     .main .block-container {
         padding-top: 2rem;
         padding-bottom: 2rem;
     }
     
-    /* Sidebar styling */
+    /* Sidebar styling - theme aware */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+        background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
     }
     
     /* Alert spacing */
@@ -36,27 +77,29 @@ st.markdown("""
         border-radius: 0.5rem;
     }
     
-    /* Reasoning boxes */
+    /* Reasoning boxes - theme aware */
     .reasoning-box {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
         padding: 1.25rem;
         border-radius: 0.5rem;
-        border-left: 4px solid #0066cc;
+        border-left: 4px solid var(--accent-color);
         margin: 1rem 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px var(--shadow);
         font-size: 0.95rem;
         line-height: 1.6;
+        color: var(--text-primary);
     }
     
-    /* Tool execution boxes */
+    /* Tool execution boxes - theme aware */
     .tool-execution {
-        background: linear-gradient(135deg, #e7f3ff 0%, #d0e7ff 100%);
+        background: linear-gradient(135deg, var(--accent-light) 0%, var(--bg-tertiary) 100%);
         padding: 1rem;
         border-radius: 0.5rem;
         margin: 0.75rem 0;
-        border-left: 3px solid #0066cc;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border-left: 3px solid var(--accent-color);
+        box-shadow: 0 1px 3px var(--shadow);
         font-size: 0.9rem;
+        color: var(--text-primary);
     }
     
     /* Button improvements */
@@ -68,7 +111,7 @@ st.markdown("""
     
     .stButton > button:hover {
         transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 8px var(--shadow);
     }
     
     /* Metric cards */
@@ -77,9 +120,9 @@ st.markdown("""
         font-weight: 600;
     }
     
-    /* Headers */
+    /* Headers - theme aware */
     h1, h2, h3 {
-        color: #1a1a1a;
+        color: var(--text-primary);
         font-weight: 600;
     }
     
@@ -88,10 +131,10 @@ st.markdown("""
         border-radius: 0.5rem;
     }
     
-    /* Expander styling */
+    /* Expander styling - theme aware */
     .streamlit-expanderHeader {
         font-weight: 500;
-        color: #1a1a1a;
+        color: var(--text-primary);
     }
     
     /* Chat messages */
@@ -101,16 +144,31 @@ st.markdown("""
         margin: 0.5rem 0;
     }
     
-    /* Text area */
-    textarea {
+    /* Text area - theme aware */
+    textarea,
+    .stTextArea textarea {
         border-radius: 0.5rem;
+        background-color: var(--bg-primary) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-color) !important;
     }
     
-    /* Divider improvements */
+    textarea:focus,
+    .stTextArea textarea:focus {
+        border-color: var(--accent-color) !important;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(77, 166, 255, 0.2);
+    }
+    
+    textarea::placeholder {
+        color: var(--text-secondary) !important;
+    }
+    
+    /* Divider improvements - theme aware */
     hr {
         margin: 2rem 0;
         border: none;
-        border-top: 1px solid #e0e0e0;
+        border-top: 1px solid var(--border-color);
     }
     
     /* Tab styling */
@@ -133,15 +191,16 @@ st.markdown("""
         background: transparent !important;
     }
     
-    /* Style plain text output */
+    /* Style plain text output - theme aware */
     [data-testid="stText"] {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
         padding: 0.75rem;
         border-radius: 0.5rem;
         margin: 0.5rem 0;
-        border-left: 3px solid #0066cc;
+        border-left: 3px solid var(--accent-color);
         font-size: 0.9rem;
         line-height: 1.5;
+        color: var(--text-primary);
     }
     
     /* Remove white background from markdown containers */
@@ -152,6 +211,65 @@ st.markdown("""
     /* Main content area background */
     .main .block-container {
         background: transparent !important;
+    }
+    
+    /* Text input styling - theme aware */
+    .stTextInput > div > div > input {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+    
+    /* Selectbox styling - theme aware */
+    .stSelectbox > div > div {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+    }
+    
+    /* Checkbox styling - theme aware */
+    .stCheckbox label {
+        color: var(--text-primary);
+    }
+    
+    /* Radio button styling - theme aware */
+    .stRadio label {
+        color: var(--text-primary);
+    }
+    
+    /* Slider styling - theme aware */
+    .stSlider label {
+        color: var(--text-primary);
+    }
+    
+    /* Custom classes for theme-aware text */
+    .theme-text-primary {
+        color: var(--text-primary);
+    }
+    
+    .theme-text-secondary {
+        color: var(--text-secondary);
+    }
+    
+    .theme-bg-primary {
+        background-color: var(--bg-primary);
+    }
+    
+    /* Override inline styles in markdown divs */
+    div[style*="color: #1a1a1a"],
+    div[style*="color: #666"] {
+        color: var(--text-primary) !important;
+    }
+    
+    h4[style*="color: #1a1a1a"] {
+        color: var(--text-primary) !important;
+    }
+    
+    h3[style*="color: #1a1a1a"] {
+        color: var(--text-primary) !important;
+    }
+    
+    ul[style*="color: #666"] {
+        color: var(--text-secondary) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -170,8 +288,8 @@ with st.sidebar:
 
     st.markdown("""
     <div style='margin-bottom: 1.5rem;'>
-        <h3 style='margin-bottom: 0.5rem; color: #1a1a1a;'>Archai</h3>
-        <p style='color: #666; font-size: 0.9rem; line-height: 1.5;'>
+        <h3 style='margin-bottom: 0.5rem;' class='theme-text-primary'>Archai</h3>
+        <p style='font-size: 0.9rem; line-height: 1.5;' class='theme-text-secondary'>
             AI Architecture Reviewer using RAG, ReAct reasoning, and multi-agent coordination.
         </p>
     </div>
@@ -251,8 +369,8 @@ with st.sidebar:
 
     st.markdown("""
     <div style='margin-top: 1rem;'>
-        <h4 style='color: #1a1a1a; margin-bottom: 0.75rem;'>Capabilities</h4>
-        <ul style='color: #666; font-size: 0.9rem; line-height: 1.8; padding-left: 1.25rem;'>
+        <h4 style='margin-bottom: 0.75rem;' class='theme-text-primary'>Capabilities</h4>
+        <ul style='font-size: 0.9rem; line-height: 1.8; padding-left: 1.25rem;' class='theme-text-secondary'>
             <li><strong>RAG:</strong> Knowledge retrieval from architecture patterns</li>
             <li><strong>ReAct:</strong> Structured reasoning (Thought → Action → Observation)</li>
             <li><strong>MCP:</strong> Multi-agent coordination for specialized analysis</li>
@@ -264,7 +382,7 @@ with st.sidebar:
 # Main header
 st.title("🏛️ Archai - AI Architecture Reviewer")
 st.markdown("""
-<div style='color: #666; font-size: 1.1rem; margin-bottom: 2rem;'>
+<div style='font-size: 1.1rem; margin-bottom: 2rem;' class='theme-text-secondary'>
     Autonomous architecture reasoning agent for reviewing decisions and recommending improvements.
 </div>
 """, unsafe_allow_html=True)
@@ -347,7 +465,7 @@ Requirements:
         show_reasoning = st.checkbox(
             "Show Reasoning",
             value=verbose,
-            help="Display reasoning steps in real-time"
+            help="Show reasoning steps"
         )
 
         st.markdown("---")
@@ -363,8 +481,8 @@ Requirements:
 
                 # Show prominent waiting message
                 with status_container:
-                    st.warning("⏳ **Review in Progress** - This may take 30-60 seconds. Please wait...")
-                    st.info("The agent is analyzing your architecture using RAG, security analysis, cost estimation, and graph analysis. This process involves multiple reasoning steps and API calls.")
+                    st.warning("⏳ **Review in Progress** - This may take few minutes. Please wait...")
+                    st.info("⏳ **Review in Progress** - This may take few minutes. Please wait...")
 
                 class StreamCapture:
                     def __init__(self):
@@ -759,9 +877,9 @@ with tab5:
 # Footer
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #666; padding: 20px;'>
+<div style='text-align: center; padding: 20px;' class='theme-text-secondary'>
     <p><strong>Archai - AI Architecture Reviewer</strong></p>
-    <p>Built with ❤️ by <a href="https://github.com/hastagAB" target="_blank">Ayush Bhardwaj</a></p>
-    <p><a href="https://github.com/hastagAB/Archai" target="_blank">View on GitHub</a></p>
+    <p>Built with ❤️ by <a href="https://github.com/hastagAB" target="_blank" style='color: var(--accent-color);'>Ayush Bhardwaj</a></p>
+    <p><a href="https://github.com/hastagAB/Archai" target="_blank" style='color: var(--accent-color);'>View on GitHub</a></p>
 </div>
 """, unsafe_allow_html=True)

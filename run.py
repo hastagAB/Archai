@@ -12,8 +12,16 @@ def interactive():
     print("Architecture Reviewer - Interactive Mode (with MCP)")
     print("="*70)
     print("\nCommands:")
-    print("  review [--stream] [--reflect] | chat | compare | upload")
-    print("  memory | save | clear | exit")
+    print("  review              - Review architecture")
+    print("  review --reflect    - Review with self-reflection")
+    print("  review --stream     - Review with streaming output")
+    print("  chat <message>      - Chat about architecture")
+    print("  compare <file1> <file2> - Compare two architectures")
+    print("  upload <filepath>   - Upload and review file")
+    print("  memory              - Show memory summary")
+    print("  save                - Save session to file")
+    print("  clear               - Clear memory")
+    print("  exit                - Exit interactive mode")
     print("="*70)
 
     with ArchitectureAgent(verbose=True, use_mcp=True) as agent:
@@ -86,16 +94,25 @@ def interactive():
                         else:
                             arch = parts[1]
 
+                    print(f"\nStarting review (with reflection: {use_reflection})...")
+                    
                     if use_streaming:
                         result = agent.review_streaming(arch)
                     elif use_reflection:
                         result = agent.review_with_reflection(arch)
                     else:
                         result = agent.review(arch)
+                    
                     print(f"\n{'='*70}")
                     print("REVIEW COMPLETE")
                     print(f"{'='*70}")
                     print(result["final_answer"])
+                    
+                    if "reflection" in result:
+                        print(f"\n{'='*70}")
+                        print("SELF-CRITIQUE")
+                        print(f"{'='*70}")
+                        print(result["reflection"])
 
                     # Show saved files
                     if "saved_files" in result:
