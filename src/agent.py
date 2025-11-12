@@ -516,10 +516,11 @@ When you have completed all necessary analysis, provide your FINAL_ANSWER with c
 
     def _display_observation(self, observation):
         """Display tool observation result."""
-        print(f"\n{'='*70}")
-        print("OBSERVATION")
-        print(f"{'='*70}")
-        print(observation[:500] + "..." if len(observation) > 500 else observation)
+        if self.verbose:
+            print(f"\n{'='*70}")
+            print("OBSERVATION")
+            print(f"{'='*70}")
+            print(observation[:500] + "..." if len(observation) > 500 else observation)
 
     def chat(self, message):
         """

@@ -19,19 +19,139 @@ st.set_page_config(
 # Custom CSS
 st.markdown("""
 <style>
-    .stAlert {margin-top: 1rem;}
+    /* Main container improvements */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+    }
+    
+    /* Alert spacing */
+    .stAlert {
+        margin-top: 1rem;
+        border-radius: 0.5rem;
+    }
+    
+    /* Reasoning boxes */
     .reasoning-box {
-        background-color: #f0f2f6;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 1.25rem;
+        border-radius: 0.5rem;
+        border-left: 4px solid #0066cc;
+        margin: 1rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+    
+    /* Tool execution boxes */
+    .tool-execution {
+        background: linear-gradient(135deg, #e7f3ff 0%, #d0e7ff 100%);
         padding: 1rem;
         border-radius: 0.5rem;
-        border-left: 4px solid #1f77b4;
-        margin: 1rem 0;
+        margin: 0.75rem 0;
+        border-left: 3px solid #0066cc;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        font-size: 0.9rem;
     }
-    .tool-execution {
-        background-color: #e8f4f8;
-        padding: 0.5rem;
-        border-radius: 0.3rem;
+    
+    /* Button improvements */
+    .stButton > button {
+        border-radius: 0.5rem;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    /* Metric cards */
+    [data-testid="stMetricValue"] {
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+    
+    /* Headers */
+    h1, h2, h3 {
+        color: #1a1a1a;
+        font-weight: 600;
+    }
+    
+    /* Code blocks */
+    .stCodeBlock {
+        border-radius: 0.5rem;
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        font-weight: 500;
+        color: #1a1a1a;
+    }
+    
+    /* Chat messages */
+    .stChatMessage {
+        padding: 1rem;
+        border-radius: 0.5rem;
         margin: 0.5rem 0;
+    }
+    
+    /* Text area */
+    textarea {
+        border-radius: 0.5rem;
+    }
+    
+    /* Divider improvements */
+    hr {
+        margin: 2rem 0;
+        border: none;
+        border-top: 1px solid #e0e0e0;
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 0.5rem 0.5rem 0 0;
+        padding: 0.75rem 1.5rem;
+    }
+    
+    /* Expander content background */
+    .streamlit-expanderContent {
+        background: transparent !important;
+    }
+    
+    /* Remove white background from text elements */
+    .element-container .stText {
+        background: transparent !important;
+    }
+    
+    /* Style plain text output */
+    [data-testid="stText"] {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        margin: 0.5rem 0;
+        border-left: 3px solid #0066cc;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+    
+    /* Remove white background from markdown containers */
+    .element-container {
+        background: transparent !important;
+    }
+    
+    /* Main content area background */
+    .main .block-container {
+        background: transparent !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -46,13 +166,16 @@ if "agent" not in st.session_state:
 
 # Sidebar configuration
 with st.sidebar:
-    st.title("Configuration")
+    st.title("⚙️ Configuration")
 
     st.markdown("""
-    **Archai** - AI Architecture Reviewer
-
-    Autonomous agent for architecture review using RAG, ReAct reasoning, and multi-agent coordination.
-    """)
+    <div style='margin-bottom: 1.5rem;'>
+        <h3 style='margin-bottom: 0.5rem; color: #1a1a1a;'>Archai</h3>
+        <p style='color: #666; font-size: 0.9rem; line-height: 1.5;'>
+            AI Architecture Reviewer using RAG, ReAct reasoning, and multi-agent coordination.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.divider()
 
@@ -127,17 +250,24 @@ with st.sidebar:
     st.divider()
 
     st.markdown("""
-    **Capabilities**
-
-    - RAG: Knowledge retrieval from architecture patterns
-    - ReAct: Structured reasoning (Thought → Action → Observation)
-    - MCP: Multi-agent coordination for specialized analysis
-    - Graph Analysis: Dependency and failure point detection
-    """)
+    <div style='margin-top: 1rem;'>
+        <h4 style='color: #1a1a1a; margin-bottom: 0.75rem;'>Capabilities</h4>
+        <ul style='color: #666; font-size: 0.9rem; line-height: 1.8; padding-left: 1.25rem;'>
+            <li><strong>RAG:</strong> Knowledge retrieval from architecture patterns</li>
+            <li><strong>ReAct:</strong> Structured reasoning (Thought → Action → Observation)</li>
+            <li><strong>MCP:</strong> Multi-agent coordination for specialized analysis</li>
+            <li><strong>Graph Analysis:</strong> Dependency and failure point detection</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Main header
-st.title("Archai - AI Architecture Reviewer")
-st.markdown("Autonomous architecture reasoning agent for reviewing decisions and recommending improvements.")
+st.title("🏛️ Archai - AI Architecture Reviewer")
+st.markdown("""
+<div style='color: #666; font-size: 1.1rem; margin-bottom: 2rem;'>
+    Autonomous architecture reasoning agent for reviewing decisions and recommending improvements.
+</div>
+""", unsafe_allow_html=True)
 
 if not st.session_state.initialized:
     st.warning("Please initialize the agent from the sidebar to begin")
@@ -156,7 +286,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
 # Tab 1: Architecture Review
 with tab1:
-    st.header("Architecture Review")
+    st.header("📋 Architecture Review")
 
     col1, col2 = st.columns([2, 1])
 
@@ -231,7 +361,10 @@ Requirements:
                 status_container = st.empty()
                 reasoning_container = st.container()
 
-                status_container.info("Analyzing architecture...")
+                # Show prominent waiting message
+                with status_container:
+                    st.warning("⏳ **Review in Progress** - This may take 30-60 seconds. Please wait...")
+                    st.info("The agent is analyzing your architecture using RAG, security analysis, cost estimation, and graph analysis. This process involves multiple reasoning steps and API calls.")
 
                 class StreamCapture:
                     def __init__(self):
@@ -245,9 +378,15 @@ Requirements:
                     def flush(self):
                         pass
 
+                # Ensure agent verbose mode matches show_reasoning
+                if show_reasoning and st.session_state.agent:
+                    st.session_state.agent.verbose = True
+
+                stream_capture = None
                 if show_reasoning:
                     old_stdout = sys.stdout
-                    sys.stdout = StreamCapture()
+                    stream_capture = StreamCapture()
+                    sys.stdout = stream_capture
 
                 try:
                     with reasoning_container:
@@ -266,30 +405,56 @@ Requirements:
 
                     if show_reasoning:
                         sys.stdout = old_stdout
+                        # Update reasoning log from capture
+                        if stream_capture and stream_capture.logs:
+                            st.session_state.reasoning_log = stream_capture.logs
 
-                    status_container.success("Review complete")
+                    with status_container:
+                        st.success("✅ **Review Complete!** Results are displayed below.")
 
                 except Exception as e:
                     if show_reasoning:
                         sys.stdout = old_stdout
-                    status_container.error(f"Error: {str(e)}")
+                    with status_container:
+                        st.error(f"❌ **Review Failed:** {str(e)}")
                     st.exception(e)
 
     # Display reasoning log
-    if st.session_state.reasoning_log and show_reasoning:
+    if st.session_state.review_result and show_reasoning:
         st.markdown("---")
-        with st.expander("Reasoning Process", expanded=True):
-            for log in st.session_state.reasoning_log:
-                if "ITERATION" in log:
-                    st.markdown(f"**{log.strip()}**")
-                elif "THOUGHT:" in log:
-                    st.markdown(f'<div class="reasoning-box">{log.strip()}</div>', unsafe_allow_html=True)
-                elif "EXECUTING TOOL:" in log or "EXECUTING:" in log:
-                    st.markdown(f'<div class="tool-execution">{log.strip()}</div>', unsafe_allow_html=True)
-                elif "OBSERVATION" in log:
-                    st.markdown(f"**{log.strip()}**")
-                else:
-                    st.text(log.strip())
+        st.subheader("Reasoning Process")
+        
+        # Show reasoning from trace if available
+        trace = st.session_state.review_result.get("trace", {})
+        
+        with st.expander("Live Reasoning Output", expanded=True):
+            if st.session_state.reasoning_log:
+                for log in st.session_state.reasoning_log:
+                    if "ITERATION" in log or "="*70 in log:
+                        st.markdown(f"**{log.strip()}**")
+                    elif "THOUGHT:" in log:
+                        st.markdown(f'<div class="reasoning-box">{log.strip()}</div>', unsafe_allow_html=True)
+                    elif "EXECUTING TOOL:" in log or "EXECUTING:" in log:
+                        st.markdown(f'<div class="tool-execution">{log.strip()}</div>', unsafe_allow_html=True)
+                    elif "OBSERVATION" in log or "Result preview:" in log:
+                        st.markdown(f"**{log.strip()}**")
+                    elif log.strip():
+                        st.markdown(f'<div class="reasoning-box" style="font-size: 0.9rem;">{log.strip()}</div>', unsafe_allow_html=True)
+            else:
+                st.info("No live reasoning output captured. Check trace below.")
+        
+        # Also show structured trace
+        if trace.get("thoughts") or trace.get("actions"):
+            with st.expander("Structured Reasoning Trace", expanded=False):
+                if trace.get("thoughts"):
+                    st.markdown("**Thoughts:**")
+                    for i, thought in enumerate(trace["thoughts"], 1):
+                        st.markdown(f'<div class="reasoning-box"><strong>Thought {i}:</strong><br>{thought}</div>', unsafe_allow_html=True)
+                
+                if trace.get("actions"):
+                    st.markdown("**Tool Executions:**")
+                    for i, action in enumerate(trace["actions"], 1):
+                        st.markdown(f'<div class="tool-execution"><strong>Action {i}:</strong> {action}</div>', unsafe_allow_html=True)
 
     # Display results
     if st.session_state.review_result:
@@ -378,7 +543,7 @@ Actions Executed:
 
 # Tab 2: Chat
 with tab2:
-    st.header("Chat & Q&A")
+    st.header("💬 Chat & Q&A")
 
     if not st.session_state.agent or not st.session_state.agent.memory.has_architecture():
         st.warning("Please complete an architecture review first")
@@ -386,27 +551,43 @@ with tab2:
         st.markdown("**Quick Questions:**")
         col1, col2, col3 = st.columns(3)
 
+        quick_prompt = None
         with col1:
             if st.button("Top 3 Security Risks", use_container_width=True):
-                prompt = "What are the top 3 security risks in this architecture?"
-                st.session_state.chat_history.append({"role": "user", "content": prompt})
+                quick_prompt = "What are the top 3 security risks in this architecture?"
 
         with col2:
             if st.button("Performance Improvements", use_container_width=True):
-                prompt = "What are the main performance bottlenecks and how can we improve them?"
-                st.session_state.chat_history.append({"role": "user", "content": prompt})
+                quick_prompt = "What are the main performance bottlenecks and how can we improve them?"
 
         with col3:
             if st.button("Cost Estimate", use_container_width=True):
-                prompt = "Provide a detailed breakdown of estimated monthly costs"
-                st.session_state.chat_history.append({"role": "user", "content": prompt})
+                quick_prompt = "Provide a detailed breakdown of estimated monthly costs"
+
+        # Handle quick question button click
+        if quick_prompt:
+            st.session_state.chat_history.append({"role": "user", "content": quick_prompt})
+            with st.chat_message("user"):
+                st.markdown(quick_prompt)
+            
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    try:
+                        response = st.session_state.agent.chat(quick_prompt)
+                        st.markdown(response)
+                        st.session_state.chat_history.append({"role": "assistant", "content": response})
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+            st.rerun()
 
         st.markdown("---")
 
+        # Display chat history
         for chat in st.session_state.chat_history:
             with st.chat_message(chat["role"]):
                 st.markdown(chat["content"])
 
+        # Handle manual chat input
         if prompt := st.chat_input("Ask about the architecture..."):
             st.session_state.chat_history.append({"role": "user", "content": prompt})
 
@@ -429,7 +610,7 @@ with tab2:
 
 # Tab 3: Compare
 with tab3:
-    st.header("Compare Architectures")
+    st.header("⚖️ Compare Architectures")
 
     col1, col2 = st.columns(2)
 
@@ -474,7 +655,7 @@ with tab3:
 
 # Tab 4: Reasoning Trace
 with tab4:
-    st.header("Reasoning Trace")
+    st.header("🧠 Reasoning Trace")
 
     if st.session_state.review_result:
         trace = st.session_state.review_result["trace"]
@@ -507,7 +688,7 @@ with tab4:
 
 # Tab 5: History
 with tab5:
-    st.header("Session History")
+    st.header("📊 Session History")
 
     if st.session_state.agent and st.session_state.agent.memory:
         summary = st.session_state.agent.memory.get_summary()
