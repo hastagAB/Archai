@@ -7,7 +7,12 @@ load_dotenv()
 
 
 class RAGTool:
-    """Retrieves architecture patterns and ADRs from vector store"""
+    """
+    Retrieval Augmented Generation tool for architecture knowledge base.
+    
+    Searches Pinecone vector store to find relevant architecture patterns,
+    ADRs, and best practices based on semantic similarity.
+    """
 
     def __init__(self):
         self.openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -15,6 +20,16 @@ class RAGTool:
         self.index = pc.Index("architecture-kb")
 
     def retrieve(self, query, top_k=5):
+        """
+        Retrieve relevant documents from knowledge base.
+        
+        Args:
+            query: Search query string
+            top_k: Number of results to return (default: 5)
+            
+        Returns:
+            List of document dictionaries with text, score, source, and type
+        """
         embedding = self.openai.embeddings.create(
             model="text-embedding-3-small",
             input=query
@@ -35,14 +50,24 @@ class RAGTool:
 
 
 class GraphTool:
-    """Analyzes architecture dependencies using LLM for extraction"""
+    """
+    Graph analysis tool for architecture dependency extraction.
+    
+    Uses LLM to extract components and dependencies from unstructured text,
+    then performs deterministic analysis for SPOFs, paths, and bottlenecks.
+    """
 
     def __init__(self):
         from anthropic import Anthropic
         self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
     def analyze(self, architecture):
-        """Two-step process: LLM extraction then deterministic analysis"""
+        """
+        Analyze architecture dependencies and identify issues.
+        
+        Two-step process: LLM extracts structured graph, then deterministic
+        algorithms identify SPOFs, critical paths, and bottlenecks.
+        """
 
         # Step 1: Use LLM to extract structured graph
         graph_data = self._extract_graph_with_llm(architecture)
@@ -57,7 +82,12 @@ class GraphTool:
         }
 
     def _extract_graph_with_llm(self, architecture):
-        """Use LLM to extract structured graph from unstructured text"""
+        """
+        Extract component graph using LLM.
+        
+        Converts unstructured architecture description into structured
+        graph with nodes (components) and edges (dependencies).
+        """
 
         prompt = f"""Extract the architecture components and dependencies as a graph.
 
@@ -105,21 +135,21 @@ Edges: Map each component to its dependencies"""
             }
 
     def _extract_components_simple(self, text):
-        """Fallback: simple keyword matching"""
+        """Fallback component extraction using keyword matching."""
         keywords = ["frontend", "backend", "database", "cache", "api gateway",
                    "load balancer", "cdn", "queue", "service", "lambda"]
         text_lower = text.lower()
         return [kw for kw in keywords if kw in text_lower]
 
     def _extract_dependencies_simple(self, text, components):
-        """Fallback: simple dependency inference"""
+        """Fallback dependency extraction using simple inference rules."""
         deps = {}
         if "frontend" in components:
             deps["frontend"] = [c for c in ["api gateway", "cdn"] if c in components]
         return deps
 
     def _find_spof(self, graph_data):
-        """Find single points of failure"""
+        """Identify single points of failure in the architecture graph."""
         spof = []
 
         # Check for single instances
@@ -140,7 +170,7 @@ Edges: Map each component to its dependencies"""
         return spof
 
     def _find_paths(self, edges):
-        """Find critical paths through the system"""
+        """Identify critical execution paths through the system."""
         paths = []
 
         # Find entry points (components with no incoming edges)
@@ -159,7 +189,7 @@ Edges: Map each component to its dependencies"""
         return paths
 
     def _traverse_path(self, node, edges, visited):
-        """Recursively traverse to build path"""
+        """Recursively traverse graph to build execution path."""
         if node in visited:
             return []
 
@@ -174,7 +204,7 @@ Edges: Map each component to its dependencies"""
         return path
 
     def _find_bottlenecks(self, edges):
-        """Find components that are dependencies for many others"""
+        """Identify components with high dependency counts (bottlenecks)."""
         incoming = {}
         for source, targets in edges.items():
             for target in targets:

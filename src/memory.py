@@ -5,7 +5,12 @@ from pathlib import Path
 
 
 class Memory:
-    """Manages conversation history and context with file persistence"""
+    """
+    Conversation memory and context management.
+    
+    Tracks review history, architecture context, and reasoning steps.
+    Provides file persistence for session data and review results.
+    """
 
     def __init__(self):
         self.history = []
@@ -25,7 +30,7 @@ class Memory:
         return self.architecture
 
     def add_entry(self, role, content):
-        """Add any entry to history"""
+        """Add entry to conversation history."""
         self.history.append({
             "role": role,
             "content": content,
@@ -33,7 +38,7 @@ class Memory:
         })
 
     def add_thought(self, thought):
-        """Add a thought - properly marked as 'thought' type"""
+        """Add reasoning thought to history."""
         self.history.append({
             "role": "thought",
             "content": thought,
@@ -41,7 +46,7 @@ class Memory:
         })
 
     def add_action(self, tool, params):
-        """Add an action - properly marked as 'action' type"""
+        """Add tool execution action to history."""
         self.history.append({
             "role": "action",
             "content": f"{tool}: {params}",
@@ -51,7 +56,7 @@ class Memory:
         })
 
     def add_observation(self, observation, tool):
-        """Add an observation - properly marked as 'observation' type"""
+        """Add tool observation result to history."""
         self.history.append({
             "role": "observation",
             "content": observation[:500],
@@ -76,7 +81,7 @@ class Memory:
         return context
 
     def get_summary(self):
-        """Get accurate summary of memory"""
+        """Get summary statistics of memory contents."""
         thoughts = len([e for e in self.history if e.get("role") == "thought"])
         actions = len([e for e in self.history if e.get("role") == "action"])
         observations = len([e for e in self.history if e.get("role") == "observation"])
@@ -91,7 +96,12 @@ class Memory:
         }
 
     def save_to_file(self, review_result=None):
-        """Save all session data to files"""
+        """
+        Save session data to files.
+        
+        Creates timestamped files for memory, review results, and traces
+        in the outputs directory.
+        """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Save memory history

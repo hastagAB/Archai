@@ -580,6 +580,7 @@ st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #666; padding: 20px;'>
     <p><strong>Archai - AI Architecture Reviewer</strong></p>
-    <p>Built with Claude Sonnet 4.5, Pinecone, and Anthropic MCP</p>
+    <p>Built with ❤️ by <a href="https://github.com/hastagAB" target="_blank">Ayush Bhardwaj</a></p>
+    <p><a href="https://github.com/hastagAB/Archai" target="_blank">View on GitHub</a></p>
 </div>
 """, unsafe_allow_html=True)

@@ -9,7 +9,12 @@ load_dotenv()
 
 
 class CostMCPServer:
-    """MCP Server for cost analysis"""
+    """
+    MCP server for cost analysis.
+    
+    Provides cost estimation and optimization tools via MCP protocol.
+    Runs as isolated subprocess for security and reliability.
+    """
 
     def __init__(self):
         self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -39,6 +44,7 @@ class CostMCPServer:
         ]
 
     def handle_request(self, request):
+        """Process incoming JSON-RPC requests from MCP client."""
         method = request.get("method")
 
         if method == "tools/list":
@@ -59,6 +65,7 @@ class CostMCPServer:
         return {"error": "Unknown method"}
 
     def _estimate_cost(self, architecture):
+        """Estimate infrastructure costs for architecture."""
         prompt = f"""Estimate monthly infrastructure costs for:
 
 {architecture}
@@ -75,6 +82,7 @@ Provide breakdown by component and total estimate."""
         return response.content[0].text
 
     def _optimize_cost(self, architecture):
+        """Generate cost optimization recommendations."""
         prompt = f"""Suggest cost optimizations for:
 
 {architecture}
@@ -91,6 +99,7 @@ Focus on: right-sizing, reserved instances, storage tiers, idle resources."""
         return response.content[0].text
 
     def run(self):
+        """Main server event loop processing JSON-RPC requests."""
         sys.stderr.write("Cost MCP Server started\n")
         sys.stderr.flush()
 

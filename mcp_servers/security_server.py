@@ -10,8 +10,10 @@ load_dotenv()
 
 class SecurityMCPServer:
     """
-    MCP Server for security analysis.
-    Runs as a separate process and communicates via stdin/stdout.
+    MCP server for security analysis.
+    
+    Runs as isolated subprocess, communicating via stdin/stdout using
+    JSON-RPC protocol. Provides security vulnerability analysis tools.
     """
 
     def __init__(self):
@@ -48,7 +50,7 @@ class SecurityMCPServer:
         ]
 
     def handle_request(self, request):
-        """Handle incoming MCP requests"""
+        """Process incoming JSON-RPC requests from MCP client."""
         method = request.get("method")
 
         if method == "tools/list":
@@ -69,7 +71,7 @@ class SecurityMCPServer:
         return {"error": "Unknown method"}
 
     def _analyze_security(self, architecture):
-        """Perform security analysis using Claude"""
+        """Execute security vulnerability analysis on architecture."""
         prompt = f"""Analyze this architecture for security vulnerabilities:
 
 {architecture}
@@ -93,7 +95,7 @@ Provide specific vulnerabilities and remediation steps."""
         return response.content[0].text
 
     def _check_owasp(self, architecture):
-        """Check against OWASP Top 10"""
+        """Evaluate architecture against OWASP Top 10 security risks."""
         prompt = f"""Check this architecture against OWASP Top 10:
 
 {architecture}
@@ -110,7 +112,7 @@ List which OWASP Top 10 risks apply and how."""
         return response.content[0].text
 
     def run(self):
-        """Main server loop - reads from stdin, writes to stdout"""
+        """Main server event loop processing JSON-RPC requests."""
         sys.stderr.write("Security MCP Server started\n")
         sys.stderr.flush()
 

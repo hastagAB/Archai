@@ -12,8 +12,10 @@ load_dotenv()
 
 class ArchitectureAgent:
     """
-    Main ReAct agent with structured tool calling.
-    Uses Claude's native tool calling instead of string parsing.
+    Main ReAct agent orchestrating architecture reviews.
+    
+    Coordinates RAG retrieval, specialized sub-agents, and graph analysis
+    using Claude's native tool calling for reliable execution.
     """
 
     def __init__(self, verbose=True, use_mcp=True):
@@ -41,7 +43,7 @@ class ArchitectureAgent:
         self.system_prompt = self._load_system_prompt()
 
     def _define_tools(self):
-        """Define tools in Claude's structured format"""
+        """Define tool schemas for Claude's structured tool calling."""
         return [
             {
                 "name": "rag_retrieve",
@@ -117,8 +119,14 @@ class ArchitectureAgent:
 
     def review(self, architecture, max_iterations=10):
         """
-        Main review loop with structured tool calling.
-        Uses Claude's native tool calling for reliability.
+        Execute architecture review using ReAct reasoning loop.
+        
+        Args:
+            architecture: Architecture description to review
+            max_iterations: Maximum reasoning cycles (default: 10)
+            
+        Returns:
+            Dictionary containing review results, trace, and saved file paths
         """
         self.logger.info("Starting architecture review with structured tools")
         self.memory.set_architecture(architecture)
@@ -208,8 +216,10 @@ class ArchitectureAgent:
 
     def review_streaming(self, architecture, max_iterations=10):
         """
-        Review with streaming output for better UX.
-        Shows real-time thinking and analysis as it happens.
+        Execute review with real-time streaming output.
+        
+        Provides live feedback as the agent processes the architecture,
+        displaying thoughts and tool executions as they occur.
         """
         self.logger.info("Starting streaming architecture review")
         self.memory.set_architecture(architecture)
@@ -318,8 +328,10 @@ class ArchitectureAgent:
 
     def review_with_reflection(self, architecture, max_iterations=10):
         """
-        Review with self-reflection step before final answer.
-        Agent critiques its own work for improved quality.
+        Execute review with self-critique phase.
+        
+        After initial review, the agent critiques its own analysis
+        and incorporates feedback to improve recommendations.
         """
         # Do normal review
         result = self.review(architecture, max_iterations)
@@ -396,7 +408,11 @@ Provide the improved FINAL_ANSWER incorporating the feedback."""
         return result
 
     def _execute_structured_tool(self, tool_name, tool_input, architecture):
-        """Execute tool with structured input"""
+        """
+        Execute a tool using structured input parameters.
+        
+        Routes tool calls to appropriate handlers (RAG, sub-agents, graph analysis).
+        """
 
         if tool_name == "rag_retrieve":
             docs = self.rag.retrieve(tool_input["query"])
@@ -428,7 +444,7 @@ Provide the improved FINAL_ANSWER incorporating the feedback."""
         return "Tool execution failed"
 
     def _extract_text_content(self, response):
-        """Extract text content from response"""
+        """Extract text blocks from Claude API response."""
         text_parts = []
         for block in response.content:
             if hasattr(block, 'text'):
@@ -436,6 +452,7 @@ Provide the improved FINAL_ANSWER incorporating the feedback."""
         return "\n".join(text_parts)
 
     def _load_system_prompt(self):
+        """Load system prompt defining agent behavior and capabilities."""
         return """You are an expert Architecture Reviewer Agent.
 
 Your process:
@@ -451,6 +468,7 @@ Available tools will be provided. Use them to:
 When you have completed all necessary analysis, provide your FINAL_ANSWER with comprehensive recommendations."""
 
     def _build_result(self, content, trace, status):
+        """Build result dictionary from review output."""
         final_answer = content.split("FINAL_ANSWER:")[1].strip() if "FINAL_ANSWER:" in content else content
 
         return {
@@ -461,6 +479,7 @@ When you have completed all necessary analysis, provide your FINAL_ANSWER with c
         }
 
     def _format_rag_results(self, docs):
+        """Format RAG retrieval results for display."""
         result = "Retrieved Documents:\n\n"
         for i, doc in enumerate(docs, 1):
             result += f"{i}. {doc['source']} (score: {doc['score']:.3f})\n"
@@ -469,6 +488,7 @@ When you have completed all necessary analysis, provide your FINAL_ANSWER with c
         return result
 
     def _format_graph_results(self, analysis):
+        """Format graph analysis results for display."""
         result = "DEPENDENCY ANALYSIS:\n\n"
         result += f"Components: {', '.join(analysis['components'])}\n\n"
         result += "Dependencies:\n"
@@ -480,6 +500,7 @@ When you have completed all necessary analysis, provide your FINAL_ANSWER with c
         return result
 
     def _log_iteration(self, iteration, max_iterations):
+        """Log current iteration number."""
         if self.verbose:
             print(f"\n{'='*70}")
             print(f"ITERATION {iteration + 1}/{max_iterations}")
@@ -487,19 +508,25 @@ When you have completed all necessary analysis, provide your FINAL_ANSWER with c
         self.logger.info(f"Iteration {iteration + 1}/{max_iterations}")
 
     def _log_tool(self, tool_name, params):
+        """Log tool execution with parameters."""
         if self.verbose:
             print(f"\nEXECUTING TOOL: {tool_name}")
             print(f"Parameters: {params}")
         self.logger.info(f"Executing {tool_name}")
 
     def _display_observation(self, observation):
+        """Display tool observation result."""
         print(f"\n{'='*70}")
         print("OBSERVATION")
         print(f"{'='*70}")
         print(observation[:500] + "..." if len(observation) > 500 else observation)
 
     def chat(self, message):
-        """Chat with context"""
+        """
+        Interactive chat about the current architecture.
+        
+        Uses conversation memory to provide context-aware responses.
+        """
         if not self.memory.has_architecture():
             return "No architecture loaded. Please review an architecture first."
 
@@ -520,7 +547,12 @@ When you have completed all necessary analysis, provide your FINAL_ANSWER with c
         return answer
 
     def compare(self, arch1, arch2):
-        """Compare architectures"""
+        """
+        Compare two architecture designs.
+        
+        Provides side-by-side analysis across security, performance,
+        cost, scalability, and complexity dimensions.
+        """
         self.logger.info("Comparing architectures")
 
         prompt = f"""Compare these architectures:

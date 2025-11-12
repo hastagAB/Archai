@@ -4,7 +4,11 @@ import PyPDF2
 
 
 class Logger:
-    """Simple logger wrapper"""
+    """
+    Logging utility wrapper.
+    
+    Provides structured logging with timestamps and component names.
+    """
 
     def __init__(self, name):
         self.logger = logging.getLogger(name)
@@ -24,7 +28,11 @@ class Logger:
 
 
 class FileHandler:
-    """Handles file reading for various formats"""
+    """
+    File reading utility for architecture documents.
+    
+    Supports PDF, Markdown, and plain text formats.
+    """
 
     @staticmethod
     def read_file(filepath):
