@@ -6,6 +6,7 @@ An autonomous architecture reasoning agent using RAG, ReAct reasoning, and multi
 
 - **RAG Integration**: Retrieves relevant patterns from vector store
 - **ReAct Reasoning**: Structured thought-action-observation loops
+- **MCP Integration**: Model Context Protocol servers for security and cost analysis
 - **Multi-Agent Coordination**: Security, Cost, Performance specialists
 - **Graph Analysis**: Dependency and bottleneck detection
 - **File Upload**: Support for PDF, Markdown, and TXT files
@@ -62,10 +63,14 @@ python -m pytest tests/test_all.py -v
 Archai/
 ├── src/
 │   ├── agent.py       # Main ReAct agent (core logic)
+│   ├── mcp_client.py  # MCP client for server communication
 │   ├── tools.py       # All tools (RAG, Graph)
 │   ├── sub_agents.py  # Specialist agents
 │   ├── memory.py      # Conversation memory
 │   └── utils.py       # Helpers (Logger, FileHandler)
+├── mcp_servers/       # MCP servers (isolated processes)
+│   ├── security_server.py
+│   └── cost_server.py
 ├── tests/
 │   └── test_all.py   # Simple tests
 ├── data/

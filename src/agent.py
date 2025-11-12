@@ -2,7 +2,8 @@ import os
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from tools import RAGTool, GraphTool
-from sub_agents import SecurityAgent, CostAgent, PerformanceAgent
+from sub_agents import PerformanceAgent
+from mcp_client import MCPClient
 from memory import Memory
 from utils import Logger
 
@@ -11,30 +12,48 @@ load_dotenv()
 
 class ArchitectureAgent:
     """
-    Main ReAct agent that orchestrates architecture reviews using:
-    - RAG for knowledge retrieval
-    - Sub-agents for specialized analysis
-    - Graph reasoning for dependency analysis
+    Main ReAct agent with MCP integration for security and cost analysis.
+    Demonstrates hybrid approach: MCP servers for isolated services + direct sub-agents.
     """
 
-    def __init__(self, verbose=True):
+    def __init__(self, verbose=True, use_mcp=True):
         self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         self.verbose = verbose
+        self.use_mcp = use_mcp
         self.logger = Logger("ArchitectureAgent")
 
         # Initialize tools
         self.rag = RAGTool()
         self.graph = GraphTool()
 
-        # Initialize sub-agents (MCP concept)
-        self.security_agent = SecurityAgent()
-        self.cost_agent = CostAgent()
+        # MCP servers for security and cost (isolated processes)
+        self.security_mcp = None
+        self.cost_mcp = None
+
+        # Regular sub-agent for performance (in-process)
         self.performance_agent = PerformanceAgent()
 
         # Initialize memory
         self.memory = Memory()
 
         self.system_prompt = self._load_system_prompt()
+
+    def __enter__(self):
+        """Start MCP servers when using context manager"""
+        if self.use_mcp:
+            self.logger.info("Starting MCP servers")
+            self.security_mcp = MCPClient("security_server.py")
+            self.security_mcp.start()
+            self.cost_mcp = MCPClient("cost_server.py")
+            self.cost_mcp.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Stop MCP servers on exit"""
+        if self.security_mcp:
+            self.security_mcp.stop()
+        if self.cost_mcp:
+            self.cost_mcp.stop()
 
     def review(self, architecture, max_iterations=10):
         """
@@ -141,21 +160,45 @@ Provide comparison on: security, performance, cost, scalability, complexity."""
             self.memory.add_action("rag", {"query": query})
             return result
 
-        # Security analysis
+        # Security analysis via MCP
         elif "SECURITY_CHECK" in message:
-            self._log_tool("Security Agent", None)
-            result = self.security_agent.analyze(architecture)
-            self.memory.add_action("security", {})
-            return f"SECURITY ANALYSIS:\n\n{result}"
+            self._log_tool("Security MCP Server", None)
 
-        # Cost analysis
+            if self.use_mcp and self.security_mcp:
+                # Use MCP server
+                response = self.security_mcp.call_tool(
+                    "analyze_security",
+                    {"architecture": architecture}
+                )
+                result = response["content"][0]["text"]
+            else:
+                # Fallback to direct call
+                from sub_agents import SecurityAgent
+                result = SecurityAgent().analyze(architecture)
+
+            self.memory.add_action("security_mcp", {})
+            return f"SECURITY ANALYSIS (via MCP):\n\n{result}"
+
+        # Cost analysis via MCP
         elif "COST_ANALYSIS" in message:
-            self._log_tool("Cost Agent", None)
-            result = self.cost_agent.analyze(architecture)
-            self.memory.add_action("cost", {})
-            return f"COST ANALYSIS:\n\n{result}"
+            self._log_tool("Cost MCP Server", None)
 
-        # Performance analysis
+            if self.use_mcp and self.cost_mcp:
+                # Use MCP server
+                response = self.cost_mcp.call_tool(
+                    "estimate_cost",
+                    {"architecture": architecture}
+                )
+                result = response["content"][0]["text"]
+            else:
+                # Fallback to direct call
+                from sub_agents import CostAgent
+                result = CostAgent().analyze(architecture)
+
+            self.memory.add_action("cost_mcp", {})
+            return f"COST ANALYSIS (via MCP):\n\n{result}"
+
+        # Performance analysis (regular sub-agent)
         elif "PERFORMANCE_CHECK" in message:
             self._log_tool("Performance Agent", None)
             result = self.performance_agent.analyze(architecture)
