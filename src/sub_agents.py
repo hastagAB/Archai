@@ -4,68 +4,47 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-class SubAgent:
-    def __init__(self, system_prompt: str):
+
+class BaseAgent:
+    """Base class for specialist agents"""
+
+    def __init__(self, role_prompt):
         self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-        self.system_prompt = system_prompt
-    
-    def analyze(self, architecture_info: str, context: str = "") -> str:
-        prompt = f"""Architecture to analyze:
-{architecture_info}
+        self.role = role_prompt
 
-Additional context:
-{context}
-
-Provide your analysis."""
-
-        message = self.client.messages.create(
+    def analyze(self, architecture):
+        response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=2000,
             temperature=0.1,
-            system=self.system_prompt,
-            messages=[{"role": "user", "content": prompt}]
+            system=self.role,
+            messages=[{"role": "user", "content": f"Analyze:\n{architecture}"}]
         )
-        
-        return message.content[0].text
+        return response.content[0].text
 
 
-class SecurityAgent(SubAgent):
+class SecurityAgent(BaseAgent):
     def __init__(self):
         super().__init__(
-            system_prompt="""You are a Security Specialist. Analyze architectures for:
-- Authentication and authorization
-- Encryption (at rest and in transit)
-- Network security
-- OWASP Top 10 compliance
-- Secrets management
-
-Provide specific security concerns and fixes."""
+            "You are a Security Specialist. Analyze for: authentication, "
+            "authorization, encryption, network security, OWASP compliance, "
+            "secrets management. Provide specific risks and fixes."
         )
 
 
-class CostAgent(SubAgent):
+class CostAgent(BaseAgent):
     def __init__(self):
         super().__init__(
-            system_prompt="""You are a Cost Optimization Specialist. Analyze for:
-- Resource right-sizing
-- Reserved vs on-demand instances
-- Storage optimization
-- Data transfer costs
-- Idle resources
-
-Provide cost estimates and optimization recommendations."""
+            "You are a Cost Optimizer. Analyze for: resource sizing, "
+            "reserved vs on-demand instances, storage optimization, "
+            "data transfer costs, idle resources. Provide cost estimates."
         )
 
 
-class PerformanceAgent(SubAgent):
+class PerformanceAgent(BaseAgent):
     def __init__(self):
         super().__init__(
-            system_prompt="""You are a Performance Specialist. Analyze for:
-- Caching strategies (CDN, app cache, DB cache)
-- Database optimization
-- Load balancing
-- Async processing
-- Bottlenecks
-
-Provide performance improvement recommendations."""
+            "You are a Performance Specialist. Analyze for: caching strategies, "
+            "database optimization, load balancing, async processing, "
+            "bottlenecks. Provide performance improvements."
         )
