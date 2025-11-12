@@ -11,7 +11,9 @@ def interactive():
     print("="*70)
     print("Architecture Reviewer - Interactive Mode (with MCP)")
     print("="*70)
-    print("\nCommands: review | chat | compare | upload | memory | clear | exit")
+    print("\nCommands:")
+    print("  review | chat | compare | upload")
+    print("  memory | save | clear | exit")
     print("="*70)
 
     with ArchitectureAgent(verbose=True, use_mcp=True) as agent:
@@ -24,7 +26,37 @@ def interactive():
 
                 elif cmd == "memory":
                     summary = agent.memory.get_summary()
-                    print(f"\nMemory: {summary}")
+                    print(f"\n{'='*70}")
+                    print("MEMORY SUMMARY")
+                    print(f"{'='*70}")
+                    print(f"Session ID: {summary['session_id']}")
+                    print(f"Total Entries: {summary['total_entries']}")
+                    print(f"Has Architecture: {summary['has_architecture']}")
+                    print(f"Thoughts: {summary['thoughts']}")
+                    print(f"Actions: {summary['actions']}")
+                    print(f"Observations: {summary['observations']}")
+
+                    if summary['has_architecture']:
+                        arch = agent.memory.get_architecture()
+                        print(f"\nArchitecture Preview:")
+                        print(arch[:200] + "..." if len(arch) > 200 else arch)
+
+                    # Show recent history
+                    print(f"\n{'='*70}")
+                    print("RECENT HISTORY (last 5 entries)")
+                    print(f"{'='*70}")
+                    for entry in agent.memory.history[-5:]:
+                        role = entry['role']
+                        content = entry['content'][:100]
+                        timestamp = entry['timestamp']
+                        print(f"[{timestamp}] {role}: {content}...")
+
+                elif cmd == "save":
+                    saved = agent.memory.save_to_file()
+                    print(f"\nSession saved:")
+                    for file_type, filepath in saved.items():
+                        if filepath:
+                            print(f"  {file_type}: {filepath}")
 
                 elif cmd == "clear":
                     agent.memory.clear()
@@ -54,6 +86,15 @@ def interactive():
                     print(f"{'='*70}")
                     print(result["final_answer"])
 
+                    # Show saved files
+                    if "saved_files" in result:
+                        print(f"\n{'='*70}")
+                        print("FILES SAVED")
+                        print(f"{'='*70}")
+                        for file_type, filepath in result["saved_files"].items():
+                            if filepath:
+                                print(f"{file_type}: {filepath}")
+
                 elif cmd.startswith("chat"):
                     message = cmd.split(maxsplit=1)[1] if len(cmd.split()) > 1 else ""
                     if not message:
@@ -73,6 +114,15 @@ def interactive():
                     print("REVIEW COMPLETE")
                     print(f"{'='*70}")
                     print(result["final_answer"])
+
+                    # Show saved files
+                    if "saved_files" in result:
+                        print(f"\n{'='*70}")
+                        print("FILES SAVED")
+                        print(f"{'='*70}")
+                        for file_type, filepath in result["saved_files"].items():
+                            if filepath:
+                                print(f"{file_type}: {filepath}")
 
                 elif cmd.startswith("compare"):
                     parts = cmd.split()

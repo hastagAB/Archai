@@ -203,3 +203,6 @@ data/md/*
 data/pdf/*
 !data/md/.gitkeep
 !data/pdf/.gitkeep
+
+# Output files
+outputs/

@@ -57,8 +57,13 @@ class ArchitectureAgent:
 
     def review(self, architecture, max_iterations=10):
         """
-        Main review loop using ReAct reasoning:
-        Thought -> Action -> Observation -> Reflection -> Answer
+        Main review loop using ReAct reasoning.
+
+        What is an iteration?
+        - Each iteration is one reasoning cycle: Thought -> Action -> Observation
+        - Agent thinks about what to do, executes a tool, observes results, repeats
+        - Continues until FINAL_ANSWER is reached or max_iterations limit
+        - Max iterations prevent infinite loops if agent can't complete review
         """
         self.logger.info("Starting architecture review")
         self.memory.set_architecture(architecture)
@@ -73,22 +78,29 @@ class ArchitectureAgent:
             response = self._call_llm(messages)
             content = response.content[0].text
 
+            # Save to memory
             self.memory.add_entry("assistant", content)
 
             # Show reasoning if verbose
             if self.verbose:
                 self._display_reasoning(content)
 
-            # Extract and store thought
+            # Extract and store thought - FIX: Actually add to memory.add_thought()
             thought = self._extract_thought(content)
             if thought:
                 trace["thoughts"].append(thought)
-                self.memory.add_thought(thought)
+                self.memory.add_thought(thought)  # This properly sets role='thought'
 
             # Check if review is complete
             if "FINAL_ANSWER:" in content:
                 self.logger.info("Review complete")
-                return self._build_result(content, trace, "complete")
+                result = self._build_result(content, trace, "complete")
+
+                # Save everything to files
+                saved_files = self.memory.save_to_file(result)
+                result["saved_files"] = saved_files
+
+                return result
 
             # Execute action and get observation
             observation = self._execute_action(content, architecture)
@@ -98,6 +110,7 @@ class ArchitectureAgent:
                 action_name = self._extract_action_name(content)
                 trace["actions"].append(action_name)
 
+                # Save observation to memory - FIX: Use proper method
                 self.memory.add_observation(observation, action_name)
 
                 if self.verbose:
@@ -109,7 +122,12 @@ class ArchitectureAgent:
                 messages.append({"role": "assistant", "content": content})
                 messages.append({"role": "user", "content": "Continue or provide FINAL_ANSWER."})
 
-        return self._build_result("Max iterations reached", trace, "incomplete")
+        # Max iterations reached - still save what we have
+        result = self._build_result("Max iterations reached", trace, "incomplete")
+        saved_files = self.memory.save_to_file(result)
+        result["saved_files"] = saved_files
+
+        return result
 
     def chat(self, message):
         """Chat about current architecture using conversation memory"""
