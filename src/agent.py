@@ -206,6 +206,116 @@ class ArchitectureAgent:
         result["saved_files"] = saved_files
         return result
 
+    def review_streaming(self, architecture, max_iterations=10):
+        """
+        Review with streaming output for better UX.
+        Shows real-time thinking and analysis as it happens.
+        """
+        self.logger.info("Starting streaming architecture review")
+        self.memory.set_architecture(architecture)
+
+        messages = [{"role": "user", "content": f"Review this architecture:\n\n{architecture}"}]
+        trace = {"thoughts": [], "actions": [], "observations": []}
+
+        for iteration in range(max_iterations):
+            self._log_iteration(iteration, max_iterations)
+
+            # Stream the response
+            accumulated_text = ""
+
+            with self.client.messages.stream(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4000,
+                temperature=0.2,
+                system=self.system_prompt,
+                tools=self.tools,
+                messages=messages
+            ) as stream:
+
+                if self.verbose:
+                    print("\nAgent: ", end="", flush=True)
+
+                for event in stream:
+                    if event.type == "content_block_start":
+                        if hasattr(event, 'content_block') and hasattr(event.content_block, 'type'):
+                            if event.content_block.type == "text":
+                                pass
+                            elif event.content_block.type == "tool_use":
+                                if self.verbose:
+                                    print(f"\n\n[Using tool: {event.content_block.name}]", flush=True)
+
+                    elif event.type == "content_block_delta":
+                        if hasattr(event, 'delta'):
+                            if hasattr(event.delta, 'text'):
+                                text_chunk = event.delta.text
+                                accumulated_text += text_chunk
+                                if self.verbose:
+                                    print(text_chunk, end="", flush=True)
+
+                    elif event.type == "message_stop":
+                        if self.verbose:
+                            print("\n")
+
+                # Get the final message
+                final_message = stream.get_final_message()
+
+            # Process the complete response
+            if final_message.stop_reason == "end_turn":
+                final_text = self._extract_text_content(final_message)
+
+                if "FINAL_ANSWER:" in final_text or iteration == max_iterations - 1:
+                    result = self._build_result(final_text, trace, "complete")
+                    saved_files = self.memory.save_to_file(result)
+                    result["saved_files"] = saved_files
+                    return result
+
+                messages.append({"role": "assistant", "content": final_message.content})
+                messages.append({"role": "user", "content": "Continue analysis or provide FINAL_ANSWER."})
+
+            elif final_message.stop_reason == "tool_use":
+                assistant_content = final_message.content
+                messages.append({"role": "assistant", "content": assistant_content})
+
+                # Extract thought
+                text_content = self._extract_text_content(final_message)
+                if text_content:
+                    self.memory.add_thought(text_content)
+                    trace["thoughts"].append(text_content)
+
+                # Execute tools
+                tool_results = []
+                for content_block in assistant_content:
+                    if content_block.type == "tool_use":
+                        tool_name = content_block.name
+                        tool_input = content_block.input
+                        tool_use_id = content_block.id
+
+                        if self.verbose:
+                            print(f"\nExecuting: {tool_name}...", flush=True)
+
+                        result = self._execute_structured_tool(tool_name, tool_input, architecture)
+
+                        trace["actions"].append(tool_name)
+                        trace["observations"].append(result)
+                        self.memory.add_action(tool_name, tool_input)
+                        self.memory.add_observation(result, tool_name)
+
+                        if self.verbose:
+                            print(f"Result preview: {result[:200]}...\n", flush=True)
+
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": tool_use_id,
+                            "content": result
+                        })
+
+                messages.append({"role": "user", "content": tool_results})
+
+        result = self._build_result("Max iterations reached", trace, "incomplete")
+        saved_files = self.memory.save_to_file(result)
+        result["saved_files"] = saved_files
+        return result
+
     def review_with_reflection(self, architecture, max_iterations=10):
         """
         Review with self-reflection step before final answer.

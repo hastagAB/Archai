@@ -5,6 +5,7 @@ An autonomous architecture reasoning agent using RAG, ReAct reasoning, and multi
 ## Features
 
 - **Structured Tool Calling**: Uses Claude's native tool calling for reliable execution
+- **Streaming Output**: Real-time streaming for better UX and immediate feedback
 - **RAG Integration**: Retrieves relevant patterns from vector store
 - **ReAct Reasoning**: Structured thought-action-observation loops
 - **MCP Integration**: Model Context Protocol servers for security and cost analysis
@@ -45,7 +46,9 @@ python run.py --interactive
 ```
 
 Available commands:
-- `review [--reflect]` - Review architecture (add `--reflect` for self-reflection)
+- `review [--stream] [--reflect]` - Review architecture
+  - `--stream`: Enable streaming output for real-time feedback
+  - `--reflect`: Enable self-reflection for improved quality
 - `upload <filepath>` - Upload and review architecture file
 - `chat <message>` - Chat about current architecture
 - `compare <file1> <file2>` - Compare two architectures

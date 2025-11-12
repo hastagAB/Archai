@@ -12,7 +12,7 @@ def interactive():
     print("Architecture Reviewer - Interactive Mode (with MCP)")
     print("="*70)
     print("\nCommands:")
-    print("  review | chat | compare | upload")
+    print("  review [--stream] [--reflect] | chat | compare | upload")
     print("  memory | save | clear | exit")
     print("="*70)
 
@@ -65,9 +65,10 @@ def interactive():
                 elif cmd.startswith("review"):
                     parts = cmd.split()
                     use_reflection = "--reflect" in parts
+                    use_streaming = "--stream" in parts
 
-                    # Remove --reflect from parts for processing
-                    parts = [p for p in parts if p != "--reflect"]
+                    # Remove flags from parts for processing
+                    parts = [p for p in parts if p not in ["--reflect", "--stream"]]
 
                     if len(parts) == 1:
                         print("\nPaste architecture (type END to finish):")
@@ -85,7 +86,9 @@ def interactive():
                         else:
                             arch = parts[1]
 
-                    if use_reflection:
+                    if use_streaming:
+                        result = agent.review_streaming(arch)
+                    elif use_reflection:
                         result = agent.review_with_reflection(arch)
                     else:
                         result = agent.review(arch)
