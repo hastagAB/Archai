@@ -12,8 +12,8 @@ load_dotenv()
 
 class ArchitectureAgent:
     """
-    Main ReAct agent with MCP integration for security and cost analysis.
-    Demonstrates hybrid approach: MCP servers for isolated services + direct sub-agents.
+    Main ReAct agent with structured tool calling.
+    Uses Claude's native tool calling instead of string parsing.
     """
 
     def __init__(self, verbose=True, use_mcp=True):
@@ -26,46 +26,101 @@ class ArchitectureAgent:
         self.rag = RAGTool()
         self.graph = GraphTool()
 
-        # MCP servers for security and cost (isolated processes)
+        # MCP servers
         self.security_mcp = None
         self.cost_mcp = None
 
-        # Regular sub-agent for performance (in-process)
+        # Regular sub-agent
         self.performance_agent = PerformanceAgent()
 
-        # Initialize memory
+        # Memory
         self.memory = Memory()
 
+        # Define tools for structured calling
+        self.tools = self._define_tools()
         self.system_prompt = self._load_system_prompt()
 
-    def __enter__(self):
-        """Start MCP servers when using context manager"""
-        if self.use_mcp:
-            self.logger.info("Starting MCP servers")
-            self.security_mcp = MCPClient("security_server.py")
-            self.security_mcp.start()
-            self.cost_mcp = MCPClient("cost_server.py")
-            self.cost_mcp.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Stop MCP servers on exit"""
-        if self.security_mcp:
-            self.security_mcp.stop()
-        if self.cost_mcp:
-            self.cost_mcp.stop()
+    def _define_tools(self):
+        """Define tools in Claude's structured format"""
+        return [
+            {
+                "name": "rag_retrieve",
+                "description": "Search knowledge base for architecture patterns, ADRs, and best practices",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query for retrieving relevant documents"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            },
+            {
+                "name": "security_analysis",
+                "description": "Analyze architecture for security vulnerabilities and risks",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "architecture": {
+                            "type": "string",
+                            "description": "Architecture description to analyze"
+                        }
+                    },
+                    "required": ["architecture"]
+                }
+            },
+            {
+                "name": "cost_analysis",
+                "description": "Estimate infrastructure costs and identify optimization opportunities",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "architecture": {
+                            "type": "string",
+                            "description": "Architecture description to analyze"
+                        }
+                    },
+                    "required": ["architecture"]
+                }
+            },
+            {
+                "name": "performance_analysis",
+                "description": "Evaluate performance characteristics and identify bottlenecks",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "architecture": {
+                            "type": "string",
+                            "description": "Architecture description to analyze"
+                        }
+                    },
+                    "required": ["architecture"]
+                }
+            },
+            {
+                "name": "graph_analysis",
+                "description": "Analyze component dependencies and identify single points of failure",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "architecture": {
+                            "type": "string",
+                            "description": "Architecture description to analyze"
+                        }
+                    },
+                    "required": ["architecture"]
+                }
+            }
+        ]
 
     def review(self, architecture, max_iterations=10):
         """
-        Main review loop using ReAct reasoning.
-
-        What is an iteration?
-        - Each iteration is one reasoning cycle: Thought -> Action -> Observation
-        - Agent thinks about what to do, executes a tool, observes results, repeats
-        - Continues until FINAL_ANSWER is reached or max_iterations limit
-        - Max iterations prevent infinite loops if agent can't complete review
+        Main review loop with structured tool calling.
+        Uses Claude's native tool calling for reliability.
         """
-        self.logger.info("Starting architecture review")
+        self.logger.info("Starting architecture review with structured tools")
         self.memory.set_architecture(architecture)
 
         messages = [{"role": "user", "content": f"Review this architecture:\n\n{architecture}"}]
@@ -74,193 +129,216 @@ class ArchitectureAgent:
         for iteration in range(max_iterations):
             self._log_iteration(iteration, max_iterations)
 
-            # Get agent response
-            response = self._call_llm(messages)
-            content = response.content[0].text
+            # Call Claude with tools
+            response = self.client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4000,
+                temperature=0.2,
+                system=self.system_prompt,
+                tools=self.tools,
+                messages=messages
+            )
 
-            # Save to memory
-            self.memory.add_entry("assistant", content)
+            # Process response
+            if response.stop_reason == "end_turn":
+                # Agent is done
+                final_text = self._extract_text_content(response)
+                if "FINAL_ANSWER:" in final_text or iteration == max_iterations - 1:
+                    result = self._build_result(final_text, trace, "complete")
+                    saved_files = self.memory.save_to_file(result)
+                    result["saved_files"] = saved_files
+                    return result
 
-            # Show reasoning if verbose
-            if self.verbose:
-                self._display_reasoning(content)
+                messages.append({"role": "assistant", "content": response.content})
+                messages.append({"role": "user", "content": "Continue analysis or provide FINAL_ANSWER."})
 
-            # Extract and store thought - FIX: Actually add to memory.add_thought()
-            thought = self._extract_thought(content)
-            if thought:
-                trace["thoughts"].append(thought)
-                self.memory.add_thought(thought)  # This properly sets role='thought'
+            elif response.stop_reason == "tool_use":
+                # Agent wants to use a tool
+                assistant_content = response.content
+                messages.append({"role": "assistant", "content": assistant_content})
 
-            # Check if review is complete
-            if "FINAL_ANSWER:" in content:
-                self.logger.info("Review complete")
-                result = self._build_result(content, trace, "complete")
+                # Extract thought if present
+                text_content = self._extract_text_content(response)
+                if text_content:
+                    self.memory.add_thought(text_content)
+                    trace["thoughts"].append(text_content)
+                    if self.verbose:
+                        print(f"\nTHOUGHT: {text_content}")
 
-                # Save everything to files
-                saved_files = self.memory.save_to_file(result)
-                result["saved_files"] = saved_files
+                # Process all tool uses
+                tool_results = []
+                for content_block in assistant_content:
+                    if content_block.type == "tool_use":
+                        tool_name = content_block.name
+                        tool_input = content_block.input
+                        tool_use_id = content_block.id
 
-                return result
+                        self._log_tool(tool_name, tool_input)
 
-            # Execute action and get observation
-            observation = self._execute_action(content, architecture)
+                        # Execute tool
+                        result = self._execute_structured_tool(tool_name, tool_input, architecture)
 
-            if observation:
-                trace["observations"].append(observation)
-                action_name = self._extract_action_name(content)
-                trace["actions"].append(action_name)
+                        # Store in trace
+                        trace["actions"].append(tool_name)
+                        trace["observations"].append(result)
+                        self.memory.add_action(tool_name, tool_input)
+                        self.memory.add_observation(result, tool_name)
 
-                # Save observation to memory - FIX: Use proper method
-                self.memory.add_observation(observation, action_name)
+                        if self.verbose:
+                            self._display_observation(result)
 
-                if self.verbose:
-                    self._display_observation(observation)
+                        # Add tool result
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": tool_use_id,
+                            "content": result
+                        })
 
-                messages.append({"role": "assistant", "content": content})
-                messages.append({"role": "user", "content": f"OBSERVATION: {observation}\n\nContinue."})
+                # Add tool results to conversation
+                messages.append({"role": "user", "content": tool_results})
+
             else:
-                messages.append({"role": "assistant", "content": content})
-                messages.append({"role": "user", "content": "Continue or provide FINAL_ANSWER."})
+                # Unexpected stop reason
+                break
 
-        # Max iterations reached - still save what we have
         result = self._build_result("Max iterations reached", trace, "incomplete")
+        saved_files = self.memory.save_to_file(result)
+        result["saved_files"] = saved_files
+        return result
+
+    def review_with_reflection(self, architecture, max_iterations=10):
+        """
+        Review with self-reflection step before final answer.
+        Agent critiques its own work for improved quality.
+        """
+        # Do normal review
+        result = self.review(architecture, max_iterations)
+
+        if result["status"] != "complete":
+            return result
+
+        # Self-reflection step
+        if self.verbose:
+            print(f"\n{'='*70}")
+            print("SELF-REFLECTION PHASE")
+            print(f"{'='*70}")
+
+        self.logger.info("Starting self-reflection")
+
+        reflection_prompt = f"""You are a Principal Architect reviewing this analysis:
+
+DRAFT REVIEW:
+
+{result['final_answer']}
+
+ORIGINAL ARCHITECTURE:
+
+{architecture}
+
+Critique this review:
+
+1. Is the reasoning sound and complete?
+2. Are recommendations specific and actionable?
+3. Have any critical areas been missed?
+4. Are there any contradictions or unclear points?
+
+Provide constructive feedback and suggest improvements."""
+
+        reflection = self.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=2000,
+            temperature=0.3,
+            messages=[{"role": "user", "content": reflection_prompt}]
+        )
+
+        critique = reflection.content[0].text
+
+        if self.verbose:
+            print(f"\nSELF-CRITIQUE:\n{critique}")
+
+        # Incorporate feedback
+        final_prompt = f"""Based on this critique, provide an improved final review:
+
+CRITIQUE:
+
+{critique}
+
+ORIGINAL REVIEW:
+
+{result['final_answer']}
+
+Provide the improved FINAL_ANSWER incorporating the feedback."""
+
+        improved = self.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4000,
+            temperature=0.2,
+            messages=[{"role": "user", "content": final_prompt}]
+        )
+
+        result["final_answer"] = improved.content[0].text
+        result["reflection"] = critique
+
+        # Save updated result
         saved_files = self.memory.save_to_file(result)
         result["saved_files"] = saved_files
 
         return result
 
-    def chat(self, message):
-        """Chat about current architecture using conversation memory"""
-        if not self.memory.has_architecture():
-            return "No architecture loaded. Please review an architecture first."
+    def _execute_structured_tool(self, tool_name, tool_input, architecture):
+        """Execute tool with structured input"""
 
-        self.memory.add_entry("user", message)
+        if tool_name == "rag_retrieve":
+            docs = self.rag.retrieve(tool_input["query"])
+            return self._format_rag_results(docs)
 
-        context = self.memory.get_context()
-        full_prompt = f"{context}\n\nUser Question: {message}"
-
-        response = self._call_llm([{"role": "user", "content": full_prompt}], system="You are an architecture consultant. Use context to answer.")
-
-        answer = response.content[0].text
-        self.memory.add_entry("assistant", answer)
-
-        return answer
-
-    def compare(self, arch1, arch2):
-        """Compare two architectures"""
-        self.logger.info("Comparing architectures")
-
-        prompt = f"""Compare these architectures:
-
-ARCHITECTURE 1:
-
-{arch1}
-
-ARCHITECTURE 2:
-
-{arch2}
-
-Provide comparison on: security, performance, cost, scalability, complexity."""
-
-        response = self._call_llm([{"role": "user", "content": prompt}])
-        return response.content[0].text
-
-    def _execute_action(self, message, architecture):
-        """Execute tool based on agent's action"""
-
-        # RAG retrieval
-        if "RETRIEVE[" in message:
-            query = self._extract_between(message, "RETRIEVE[", "]")
-            self._log_tool("RAG Retrieval", query)
-
-            docs = self.rag.retrieve(query)
-            result = self._format_rag_results(docs)
-            self.memory.add_action("rag", {"query": query})
-            return result
-
-        # Security analysis via MCP
-        elif "SECURITY_CHECK" in message:
-            self._log_tool("Security MCP Server", None)
-
+        elif tool_name == "security_analysis":
             if self.use_mcp and self.security_mcp:
-                # Use MCP server
-                response = self.security_mcp.call_tool(
-                    "analyze_security",
-                    {"architecture": architecture}
-                )
-                result = response["content"][0]["text"]
+                response = self.security_mcp.call_tool("analyze_security", tool_input)
+                return response["content"][0]["text"]
             else:
-                # Fallback to direct call
                 from sub_agents import SecurityAgent
-                result = SecurityAgent().analyze(architecture)
+                return SecurityAgent().analyze(architecture)
 
-            self.memory.add_action("security_mcp", {})
-            return f"SECURITY ANALYSIS (via MCP):\n\n{result}"
-
-        # Cost analysis via MCP
-        elif "COST_ANALYSIS" in message:
-            self._log_tool("Cost MCP Server", None)
-
+        elif tool_name == "cost_analysis":
             if self.use_mcp and self.cost_mcp:
-                # Use MCP server
-                response = self.cost_mcp.call_tool(
-                    "estimate_cost",
-                    {"architecture": architecture}
-                )
-                result = response["content"][0]["text"]
+                response = self.cost_mcp.call_tool("estimate_cost", tool_input)
+                return response["content"][0]["text"]
             else:
-                # Fallback to direct call
                 from sub_agents import CostAgent
-                result = CostAgent().analyze(architecture)
+                return CostAgent().analyze(architecture)
 
-            self.memory.add_action("cost_mcp", {})
-            return f"COST ANALYSIS (via MCP):\n\n{result}"
+        elif tool_name == "performance_analysis":
+            return self.performance_agent.analyze(architecture)
 
-        # Performance analysis (regular sub-agent)
-        elif "PERFORMANCE_CHECK" in message:
-            self._log_tool("Performance Agent", None)
-            result = self.performance_agent.analyze(architecture)
-            self.memory.add_action("performance", {})
-            return f"PERFORMANCE ANALYSIS:\n\n{result}"
-
-        # Graph analysis
-        elif "GRAPH_ANALYSIS" in message:
-            self._log_tool("Graph Analyzer", None)
+        elif tool_name == "graph_analysis":
             analysis = self.graph.analyze(architecture)
-            result = self._format_graph_results(analysis)
-            self.memory.add_action("graph", {})
-            return result
+            return self._format_graph_results(analysis)
 
-        return ""
+        return "Tool execution failed"
 
-    def _call_llm(self, messages, system=None):
-        """Call Claude API"""
-        return self.client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=4000,
-            temperature=0.2,
-            system=system or self.system_prompt,
-            messages=messages
-        )
+    def _extract_text_content(self, response):
+        """Extract text content from response"""
+        text_parts = []
+        for block in response.content:
+            if hasattr(block, 'text'):
+                text_parts.append(block.text)
+        return "\n".join(text_parts)
 
     def _load_system_prompt(self):
-        return """You are an Architecture Reviewer Agent.
+        return """You are an expert Architecture Reviewer Agent.
 
-ReAct Process:
-1. THOUGHT: Analyze what's needed
-2. ACTION: Execute tool or sub-agent
-3. OBSERVATION: Review results
-4. REFLECTION: Check completeness
-5. FINAL_ANSWER: Provide recommendations
+Your process:
+1. Think about what analysis is needed
+2. Use tools to gather information and perform analysis
+3. Synthesize findings into recommendations
 
-Available Actions:
-- RETRIEVE[query]: Search knowledge base
-- SECURITY_CHECK: Security analysis
-- COST_ANALYSIS: Cost analysis
-- PERFORMANCE_CHECK: Performance analysis
-- GRAPH_ANALYSIS: Dependency analysis
+Available tools will be provided. Use them to:
+- Retrieve relevant architecture patterns and ADRs
+- Analyze security, cost, and performance
+- Analyze component dependencies
 
-Format your response with clear sections."""
+When you have completed all necessary analysis, provide your FINAL_ANSWER with comprehensive recommendations."""
 
     def _build_result(self, content, trace, status):
         final_answer = content.split("FINAL_ANSWER:")[1].strip() if "FINAL_ANSWER:" in content else content
@@ -291,24 +369,6 @@ Format your response with clear sections."""
         result += f"Bottlenecks: {', '.join(analysis['bottlenecks']) if analysis['bottlenecks'] else 'None'}\n"
         return result
 
-    def _extract_thought(self, content):
-        return self._extract_section(content, "THOUGHT:")
-
-    def _extract_action_name(self, content):
-        return self._extract_section(content, "ACTION:")
-
-    def _extract_section(self, content, marker):
-        if marker in content:
-            start = content.find(marker) + len(marker)
-            end = content.find("\n\n", start)
-            return content[start:end if end != -1 else len(content)].strip()
-        return None
-
-    def _extract_between(self, text, start_marker, end_marker):
-        start = text.find(start_marker) + len(start_marker)
-        end = text.find(end_marker, start)
-        return text[start:end]
-
     def _log_iteration(self, iteration, max_iterations):
         if self.verbose:
             print(f"\n{'='*70}")
@@ -318,24 +378,74 @@ Format your response with clear sections."""
 
     def _log_tool(self, tool_name, params):
         if self.verbose:
-            print(f"\nEXECUTING: {tool_name}")
-            if params:
-                print(f"Parameters: {params}")
+            print(f"\nEXECUTING TOOL: {tool_name}")
+            print(f"Parameters: {params}")
         self.logger.info(f"Executing {tool_name}")
-
-    def _display_reasoning(self, content):
-        for line in content.split('\n'):
-            if line.startswith('THOUGHT:'):
-                print(f"\n{line}")
-            elif line.startswith('ACTION:'):
-                print(f"\n{line}")
-            elif line.startswith('REFLECTION:'):
-                print(f"\n{line}")
-            elif line.strip():
-                print(f"  {line}")
 
     def _display_observation(self, observation):
         print(f"\n{'='*70}")
         print("OBSERVATION")
         print(f"{'='*70}")
         print(observation[:500] + "..." if len(observation) > 500 else observation)
+
+    def chat(self, message):
+        """Chat with context"""
+        if not self.memory.has_architecture():
+            return "No architecture loaded. Please review an architecture first."
+
+        self.memory.add_entry("user", message)
+        context = self.memory.get_context()
+        full_prompt = f"{context}\n\nUser Question: {message}"
+
+        response = self.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=2000,
+            temperature=0.2,
+            system="You are an architecture consultant.",
+            messages=[{"role": "user", "content": full_prompt}]
+        )
+
+        answer = response.content[0].text
+        self.memory.add_entry("assistant", answer)
+        return answer
+
+    def compare(self, arch1, arch2):
+        """Compare architectures"""
+        self.logger.info("Comparing architectures")
+
+        prompt = f"""Compare these architectures:
+
+ARCHITECTURE 1:
+
+{arch1}
+
+ARCHITECTURE 2:
+
+{arch2}
+
+Provide comparison on: security, performance, cost, scalability, complexity."""
+
+        response = self.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=3000,
+            temperature=0.2,
+            system=self.system_prompt,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        return response.content[0].text
+
+    def __enter__(self):
+        if self.use_mcp:
+            self.logger.info("Starting MCP servers")
+            self.security_mcp = MCPClient("security_server.py")
+            self.security_mcp.start()
+            self.cost_mcp = MCPClient("cost_server.py")
+            self.cost_mcp.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.security_mcp:
+            self.security_mcp.stop()
+        if self.cost_mcp:
+            self.cost_mcp.stop()

@@ -35,62 +35,149 @@ class RAGTool:
 
 
 class GraphTool:
-    """Analyzes architecture dependencies and identifies issues"""
+    """Analyzes architecture dependencies using LLM for extraction"""
+
+    def __init__(self):
+        from anthropic import Anthropic
+        self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
     def analyze(self, architecture):
-        components = self._extract_components(architecture)
-        dependencies = self._extract_dependencies(architecture, components)
+        """Two-step process: LLM extraction then deterministic analysis"""
 
+        # Step 1: Use LLM to extract structured graph
+        graph_data = self._extract_graph_with_llm(architecture)
+
+        # Step 2: Deterministic analysis on structured data
         return {
-            "components": components,
-            "dependencies": dependencies,
-            "spof": self._find_spof(components, dependencies),
-            "paths": self._find_paths(dependencies),
-            "bottlenecks": self._find_bottlenecks(dependencies)
+            "components": graph_data["nodes"],
+            "dependencies": graph_data["edges"],
+            "spof": self._find_spof(graph_data),
+            "paths": self._find_paths(graph_data["edges"]),
+            "bottlenecks": self._find_bottlenecks(graph_data["edges"])
         }
 
-    def _extract_components(self, text):
+    def _extract_graph_with_llm(self, architecture):
+        """Use LLM to extract structured graph from unstructured text"""
+
+        prompt = f"""Extract the architecture components and dependencies as a graph.
+
+Architecture:
+
+{architecture}
+
+Return ONLY valid JSON in this exact format:
+
+{{
+  "nodes": ["component1", "component2", ...],
+  "edges": {{
+    "component1": ["component2", "component3"],
+    "component2": ["component4"]
+  }}
+}}
+
+Nodes: List all components (frontend, backend, database, cache, etc.)
+Edges: Map each component to its dependencies"""
+
+        response = self.client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=2000,
+            temperature=0,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        # Extract JSON from response
+        response_text = response.content[0].text
+
+        # Clean markdown if present
+        if "```json" in response_text:
+            response_text = response_text.split("```json")[1].split("```")[0]
+        elif "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0]
+
+        import json
+        try:
+            return json.loads(response_text.strip())
+        except:
+            # Fallback to simple extraction
+            return {
+                "nodes": self._extract_components_simple(architecture),
+                "edges": self._extract_dependencies_simple(architecture, [])
+            }
+
+    def _extract_components_simple(self, text):
+        """Fallback: simple keyword matching"""
         keywords = ["frontend", "backend", "database", "cache", "api gateway",
                    "load balancer", "cdn", "queue", "service", "lambda"]
         text_lower = text.lower()
         return [kw for kw in keywords if kw in text_lower]
 
-    def _extract_dependencies(self, text, components):
+    def _extract_dependencies_simple(self, text, components):
+        """Fallback: simple dependency inference"""
         deps = {}
         if "frontend" in components:
             deps["frontend"] = [c for c in ["api gateway", "cdn"] if c in components]
-        if "api gateway" in components:
-            deps["api gateway"] = [c for c in ["service", "lambda"] if c in components]
-        if "service" in components or "backend" in components:
-            deps["services"] = [c for c in ["database", "cache"] if c in components]
         return deps
 
-    def _find_spof(self, components, dependencies):
+    def _find_spof(self, graph_data):
+        """Find single points of failure"""
         spof = []
-        if "database" in components and "single" in " ".join(components).lower():
-            spof.append("Single database instance")
+
+        # Check for single instances
+        for node in graph_data["nodes"]:
+            if "single" in node.lower() or ("database" in node.lower() and "replica" not in node.lower()):
+                spof.append(f"Single instance: {node}")
+
+        # Check for high-dependency components
+        incoming = {}
+        for source, targets in graph_data["edges"].items():
+            for target in targets:
+                incoming[target] = incoming.get(target, 0) + 1
+
+        for comp, count in incoming.items():
+            if count > 3:
+                spof.append(f"High dependency component: {comp}")
+
         return spof
 
-    def _find_paths(self, dependencies):
+    def _find_paths(self, edges):
+        """Find critical paths through the system"""
         paths = []
-        if "frontend" in dependencies:
-            path = ["frontend"]
-            current = "frontend"
-            visited = set()
-            while current in dependencies and current not in visited:
-                visited.add(current)
-                if dependencies[current]:
-                    next_node = dependencies[current][0]
-                    path.append(next_node)
-                    current = next_node
-                else:
-                    break
-            paths.append(" -> ".join(path))
+
+        # Find entry points (components with no incoming edges)
+        all_targets = set()
+        for targets in edges.values():
+            all_targets.update(targets)
+
+        entry_points = [node for node in edges.keys() if node not in all_targets]
+
+        # Traverse from each entry point
+        for entry in entry_points:
+            path = self._traverse_path(entry, edges, set())
+            if path:
+                paths.append(" -> ".join(path))
+
         return paths
 
-    def _find_bottlenecks(self, dependencies):
+    def _traverse_path(self, node, edges, visited):
+        """Recursively traverse to build path"""
+        if node in visited:
+            return []
+
+        visited.add(node)
+        path = [node]
+
+        if node in edges and edges[node]:
+            next_node = edges[node][0]
+            rest = self._traverse_path(next_node, edges, visited)
+            path.extend(rest)
+
+        return path
+
+    def _find_bottlenecks(self, edges):
+        """Find components that are dependencies for many others"""
         incoming = {}
-        for comp, deps in dependencies.items():
-            for dep in deps:
-                incoming[dep] = incoming.get(dep, 0) + 1
+        for source, targets in edges.items():
+            for target in targets:
+                incoming[target] = incoming.get(target, 0) + 1
+
         return [comp for comp, count in incoming.items() if count > 2]

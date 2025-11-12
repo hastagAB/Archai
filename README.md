@@ -4,15 +4,18 @@ An autonomous architecture reasoning agent using RAG, ReAct reasoning, and multi
 
 ## Features
 
+- **Structured Tool Calling**: Uses Claude's native tool calling for reliable execution
 - **RAG Integration**: Retrieves relevant patterns from vector store
 - **ReAct Reasoning**: Structured thought-action-observation loops
 - **MCP Integration**: Model Context Protocol servers for security and cost analysis
 - **Multi-Agent Coordination**: Security, Cost, Performance specialists
-- **Graph Analysis**: Dependency and bottleneck detection
+- **Enhanced Graph Analysis**: LLM-powered component extraction with dependency analysis
+- **Self-Reflection**: Optional self-critique loop for improved review quality
 - **File Upload**: Support for PDF, Markdown, and TXT files
 - **Interactive Chat**: Ask follow-up questions about architectures
 - **Architecture Comparison**: Side-by-side comparison of two architectures
 - **Verbose Output**: Detailed reasoning trace with thoughts, actions, and observations
+- **File Persistence**: Automatic saving of reviews, traces, and memory
 
 ## Installation
 
@@ -42,11 +45,12 @@ python run.py --interactive
 ```
 
 Available commands:
-- `review` - Review architecture (paste text or provide filepath)
+- `review [--reflect]` - Review architecture (add `--reflect` for self-reflection)
 - `upload <filepath>` - Upload and review architecture file
 - `chat <message>` - Chat about current architecture
 - `compare <file1> <file2>` - Compare two architectures
 - `memory` - Show memory summary
+- `save` - Manually save session to files
 - `clear` - Clear memory
 - `exit` - Exit program
 

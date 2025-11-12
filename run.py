@@ -63,7 +63,12 @@ def interactive():
                     print("Memory cleared")
 
                 elif cmd.startswith("review"):
-                    parts = cmd.split(maxsplit=1)
+                    parts = cmd.split()
+                    use_reflection = "--reflect" in parts
+
+                    # Remove --reflect from parts for processing
+                    parts = [p for p in parts if p != "--reflect"]
+
                     if len(parts) == 1:
                         print("\nPaste architecture (type END to finish):")
                         lines = []
@@ -80,7 +85,10 @@ def interactive():
                         else:
                             arch = parts[1]
 
-                    result = agent.review(arch)
+                    if use_reflection:
+                        result = agent.review_with_reflection(arch)
+                    else:
+                        result = agent.review(arch)
                     print(f"\n{'='*70}")
                     print("REVIEW COMPLETE")
                     print(f"{'='*70}")
