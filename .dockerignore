@@ -1,0 +1,11 @@
+.env
+__pycache__
+*.pyc
+.git
+.pytest_cache
+outputs/*
+data/md/*
+data/pdf/*
+*.log
+.DS_Store
+

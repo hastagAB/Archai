@@ -6,3 +6,4 @@ anthropic
 PyYAML
 pytest
 mcp
+streamlit
