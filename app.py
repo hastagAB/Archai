@@ -9,6 +9,17 @@ import json
 from datetime import datetime
 import io
 
+# Configure Streamlit theme to dark mode
+config_dir = Path(__file__).parent / ".streamlit"
+config_file = config_dir / "config.toml"
+config_dir.mkdir(exist_ok=True)
+
+if not config_file.exists():
+    config_content = """[theme]
+base = "dark"
+"""
+    config_file.write_text(config_content)
+
 st.set_page_config(
     page_title="Archai - AI Architecture Reviewer",
     page_icon="🏛️",
